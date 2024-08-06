@@ -17,3 +17,19 @@ class Catogery(BaseModel):
 
     def __str__(self):
         return self.name
+
+
+# model for the suppilers.
+class Supplier(BaseModel):
+    name = models.CharField(
+        max_length=250,
+        blank=False,
+        null=False,
+    )
+    phone_number = models.PositiveBigIntegerField(
+        blank=False,
+        null=False,
+    )
+
+    def __str__(self):
+        return self.name

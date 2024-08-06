@@ -32,4 +32,35 @@ urlpatterns = [
         views.SerachCatogeryApiView.as_view(),
         name="path to search the catogery",
     ),
+    # Suppliers.
+    path(
+        "suppliers/create/",
+        views.SupplierCreateApiView.as_view(),
+        name="path to create the suppliers",
+    ),
+    path(
+        "suppliers/list/",
+        views.SupplierListApiView.as_view(),
+        name="path to see all the list of suppliers",
+    ),
+    path(
+        "suppliers/update/<int:pk>/",
+        views.SuppliersUpdateApiView.as_view(),
+        name="path to update the suppliers",
+    ),
+    path(
+        "suppliers/delete/<int:pk>/",
+        views.SuppliersDeleteApiView.as_view(),
+        name="path to delete the suppliers",
+    ),
+    path(
+        "suppliers/indivisul-retrival/<int:pk>/",
+        views.SingleSuppliersApiView.as_view(),
+        name="path to get the single suppliers",
+    ),
+    path(
+        "suppliers/search/",
+        views.SerachSuppliersApiView.as_view(),
+        name="path to search the suppliers",
+    ),
 ]
