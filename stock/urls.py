@@ -63,7 +63,7 @@ urlpatterns = [
         views.SerachSuppliersApiView.as_view(),
         name="path to search the suppliers",
     ),
-    # STOCK.
+    # Stock.
     path(
         "stock/create/",
         views.StockCreateApiView.as_view(),
@@ -103,5 +103,36 @@ urlpatterns = [
         "stock/total-price/",
         views.TotalPriceStockApiView.as_view(),
         name="patht to get the over all price of the stock.",
+    ),
+    # Table
+    path(
+        "table/create/",
+        views.TableCreateApiView.as_view(),
+        name="path to create the table",
+    ),
+    path(
+        "table/list/",
+        views.TableListApiView.as_view(),
+        name="path to see all the list of table",
+    ),
+    path(
+        "table/update/<int:pk>/",
+        views.TableUpdateApiView.as_view(),
+        name="path to update the table",
+    ),
+    path(
+        "table/delete/<int:pk>/",
+        views.TableDeleteApiView.as_view(),
+        name="path to delete the table",
+    ),
+    path(
+        "table/indivisul-retrival/<int:pk>/",
+        views.SingleTableApiView.as_view(),
+        name="path to get the single table",
+    ),
+    path(
+        "table/search/",
+        views.SerachTableApiView.as_view(),
+        name="path to search the table",
     ),
 ]

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Catogery, Supplier, Stock
+from .models import Catogery, Supplier, Stock, Table
 
 
 # Serializer for the Catogery.
@@ -108,3 +108,10 @@ class StockTotalPrice_Serializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+# Serializer for the table.
+class Table_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = Table
+        fields = "__all__"
