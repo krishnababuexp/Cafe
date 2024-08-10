@@ -37,7 +37,7 @@ class Supplier(BaseModel):
 
 
 # model for the stock.
-class Stock(BaseModel):
+class Product(BaseModel):
     # product details.
     name = models.CharField(
         max_length=250,
@@ -46,7 +46,7 @@ class Stock(BaseModel):
         validators=[isalphanumericalvalidator],
     )
     photo = models.FileField(
-        upload_to="stock_image",
+        upload_to="product_image",
         null=True,
         blank=True,
     )
@@ -63,28 +63,40 @@ class Stock(BaseModel):
     catogery = models.ForeignKey(
         Catogery,
         on_delete=models.CASCADE,
-        related_name="stock",
+        related_name="product",
     )
     supplier = models.ForeignKey(
         Supplier,
         on_delete=models.CASCADE,
-        related_name="stocks",
+        related_name="products",
         blank=True,
         null=True,
-    )
-    home_price = models.PositiveBigIntegerField(
-        blank=False,
-        null=False,
     )
     user_price = models.PositiveBigIntegerField(
         blank=False,
         null=False,
     )
-    # stock content.
+
+    def __str__(self):
+        return f"{self.name}-{self.product_code}-{self.user_price}"
+
+
+# creating the model for the stock.
+class Stock(BaseModel):
+    product = models.OneToOneField(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="stock_product",
+        blank=False,
+        null=False,
+    )
+    home_price = models.PositiveBigIntegerField(
+        blank=False,
+        null=False,
+    )
     quantity = models.PositiveBigIntegerField(
         null=False,
         blank=False,
-        default=0,
     )
     total_price = models.PositiveBigIntegerField(
         null=True,
@@ -92,7 +104,7 @@ class Stock(BaseModel):
     )
 
     def __str__(self):
-        return f"{self.name}-{self.product_code}-{self.quantity}"
+        return f"{self.product.name}-{self.quantity}-{self.home_price}"
 
 
 # model for the table.

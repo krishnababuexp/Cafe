@@ -1,9 +1,10 @@
 from django.contrib import admin
-from .models import Catogery, Supplier, Stock, Table
+from .models import Catogery, Supplier, Product, Table, Stock
 
 # Register your models here.
 admin.site.register(Catogery)
 admin.site.register(Supplier)
+admin.site.register(Product)
 admin.site.register(Stock)
 
 

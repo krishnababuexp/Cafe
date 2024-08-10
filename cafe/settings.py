@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "stock",
+    "order",
 ]
 
 

@@ -63,46 +63,41 @@ urlpatterns = [
         views.SerachSuppliersApiView.as_view(),
         name="path to search the suppliers",
     ),
-    # Stock.
+    # Product.
     path(
-        "stock/create/",
-        views.StockCreateApiView.as_view(),
-        name="path to create the stock",
+        "product/create/",
+        views.ProductCreateApiView.as_view(),
+        name="path to create the product",
     ),
     path(
-        "stock/alist/",
-        views.StockListAdminApiView.as_view(),
-        name="path to see the list of the stock for the admin",
+        "product/alist/",
+        views.ProductListAdminApiView.as_view(),
+        name="path to see the list of the product for the admin",
     ),
     path(
-        "stock/ulist/",
-        views.StockListUserApiView.as_view(),
-        name="path to see the list of the stock for the user",
+        "product/ulist/",
+        views.ProductListUserApiView.as_view(),
+        name="path to see the list of the product for the user",
     ),
     path(
-        "stock/delete/<int:pk>/",
-        views.StockDeleteApiView.as_view(),
-        name="path to delete the stock for the admin.",
+        "product/delete/<int:pk>/",
+        views.ProductDeleteApiView.as_view(),
+        name="path to delete the product for the admin.",
     ),
     path(
-        "indivisula/stock-retrival/<int:pk>/",
-        views.IndivisualStockRetrivalApiView.as_view(),
-        name="path to get the indivisual stock for the update.",
+        "indivisula/product-retrival/<int:pk>/",
+        views.IndivisualProductRetrivalApiView.as_view(),
+        name="path to get the indivisual product for the update.",
     ),
     path(
-        "stock/search/",
-        views.StockSearchApiView.as_view(),
-        name="path to search the stock from the database",
+        "product/search/",
+        views.ProductSearchApiView.as_view(),
+        name="path to search the product from the database",
     ),
     path(
-        "stock/update/<int:pk>/",
-        views.StockUpdateApiView.as_view(),
-        name="path to update the stock for the admin.",
-    ),
-    path(
-        "stock/total-price/",
-        views.TotalPriceStockApiView.as_view(),
-        name="patht to get the over all price of the stock.",
+        "product/update/<int:pk>/",
+        views.ProductUpdateApiView.as_view(),
+        name="path to update the product for the admin.",
     ),
     # Table
     path(
@@ -134,5 +129,41 @@ urlpatterns = [
         "table/search/",
         views.SerachTableApiView.as_view(),
         name="path to search the table",
+    ),
+    # Stock.
+    path(
+        "stock/create/",
+        views.StockCreateApiView.as_view(),
+        name="path to create the stock",
+    ),
+    path(
+        "stock/list/",
+        views.StockListApiView.as_view(),
+        name="path to see the stock list",
+    ),
+    path(
+        "stock/search/",
+        views.SearchStockApiView.as_view(),
+        name="path to search the stock from the database",
+    ),
+    path(
+        "indivisula/stock-retrival/<int:pk>/",
+        views.IndivisualStockApiView.as_view(),
+        name="path to get the indivisual stock for the update.",
+    ),
+    path(
+        "stock/delete/<int:pk>/",
+        views.StockDeleteApiView.as_view(),
+        name="path to delete the stock for the admin.",
+    ),
+    path(
+        "stock/update/<int:pk>/",
+        views.StockUpdateApiView.as_view(),
+        name="path to update the stock for the admin.",
+    ),
+    path(
+        "stock/total-price/",
+        views.TotalPriceStockApiView.as_view(),
+        name="patht to get the over all price of the stock.",
     ),
 ]

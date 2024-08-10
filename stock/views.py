@@ -1,18 +1,21 @@
 from django.shortcuts import render
-from .models import Catogery, Supplier, Stock, Table
+from .models import Catogery, Supplier, Product, Table, Stock
 from cafe.render import UserRenderer
 from rest_framework.views import APIView
 from rest_framework import status, permissions, generics
 from rest_framework.response import Response
 from .serializer import (
+    CatogeryCreate_Serializer,
     Catogery_Serializer,
     Suppliers_Serializer,
-    StockCreate_Serializer,
-    StockAdmin_Serializer,
-    StockUser_Serializer,
-    Stock_Serializer,
+    ProductCreate_Serializer,
+    ProductAdmin_Serializer,
+    ProductUser_Serializer,
+    Product_Serializer,
     StockTotalPrice_Serializer,
     Table_Serializer,
+    StockCreate_Serializer,
+    StockAdmin_Serializer,
 )
 from cafe.pagination import MyPageNumberPagination
 from django.shortcuts import get_object_or_404
@@ -27,7 +30,7 @@ class CatogeryCreateApiView(generics.CreateAPIView):
     renderer_classes = [UserRenderer]
     permission_classes = [permissions.IsAdminUser]
     queryset = Catogery.objects.all()
-    serializer_class = Catogery_Serializer
+    serializer_class = CatogeryCreate_Serializer
 
 
 # displaying the list.
@@ -44,7 +47,7 @@ class CatogeryUpdateApiView(generics.UpdateAPIView):
     renderer_classes = [UserRenderer]
     permission_classes = [permissions.IsAdminUser]
     queryset = Catogery.objects.all()
-    serializer_class = Catogery_Serializer
+    serializer_class = CatogeryCreate_Serializer
 
     # here we check if the catogery image is updated or not if updated then we delete the old image.
     def perform_update(self, serializer):
@@ -149,29 +152,19 @@ class SerachSuppliersApiView(generics.ListAPIView):
     pagination_class = MyPageNumberPagination
 
 
-# Stock.
+# product.
 # creating the stock.
-class StockCreateApiView(APIView):
+class ProductCreateApiView(APIView):
     renderer_classes = [UserRenderer]
-    # permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.IsAdminUser]
 
     def post(self, request, *args, **kwargs):
-        serializer = StockCreate_Serializer(data=request.data)
+        serializer = ProductCreate_Serializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            # here we check the quantity and calculate the total price.
-            qtn = serializer.validated_data["quantity"]
-            if qtn == 0:
-                serializer.validated_data["total_price"] = 0
-                serializer.save()
-            else:
-                hprice = serializer.validated_data["home_price"]
-                stock_price = hprice * qtn
-                print(stock_price)
-                serializer.validated_data["total_price"] = stock_price
-                serializer.save()
+            serializer.save()
             return Response(
                 {
-                    "msg": "Product is added in the stock",
+                    "msg": "Product is added in Sucessfully",
                     "data": serializer.data,
                 },
                 status=status.HTTP_201_CREATED,
@@ -182,72 +175,72 @@ class StockCreateApiView(APIView):
         )
 
 
-# listing the stok for the admin only.
-class StockListAdminApiView(generics.ListAPIView):
+# listing the product for the admin only.
+class ProductListAdminApiView(generics.ListAPIView):
     renderer_classes = [UserRenderer]
-    # permission_classes = [permissions.IsAdminUser]
-    queryset = Stock.objects.all().order_by("-id")
-    serializer_class = StockAdmin_Serializer
+    permission_classes = [permissions.IsAdminUser]
+    queryset = Product.objects.all().order_by("-id")
+    serializer_class = ProductAdmin_Serializer
     pagination_class = MyPageNumberPagination
 
 
-# listing the stock for the normal user.
-class StockListUserApiView(generics.ListAPIView):
+# listing the product for the normal user.
+class ProductListUserApiView(generics.ListAPIView):
     renderer_classes = [UserRenderer]
     permission_classes = [permissions.AllowAny]
-    queryset = Stock.objects.all()
-    serializer_class = StockUser_Serializer
+    queryset = Product.objects.all()
+    serializer_class = ProductUser_Serializer
     pagination_class = MyPageNumberPagination
 
 
-# deleting the stock.
-class StockDeleteApiView(generics.DestroyAPIView):
+# deleting the product.
+class ProductDeleteApiView(generics.DestroyAPIView):
     renderer_classes = [UserRenderer]
     # permission_classes = [permissions.IsAdminUser]
-    queryset = Stock.objects.all()
-    serializer_class = Stock_Serializer
+    queryset = Product.objects.all()
+    serializer_class = Product_Serializer
 
     # here delete the image of the stock is also deleted.
     def destroy(self, request, *args, **kwargs):
-        instance = get_object_or_404(Stock, pk=kwargs["pk"])
+        instance = get_object_or_404(Product, pk=kwargs["pk"])
         photo_path = instance.photo.path
         if photo_path and os.path.isfile(photo_path):
             os.remove(photo_path)
         return super().destroy(request, *args, **kwargs)
 
 
-# indivisual stock retrival for the update.
-class IndivisualStockRetrivalApiView(generics.RetrieveAPIView):
+# indivisual product retrival for the update.
+class IndivisualProductRetrivalApiView(generics.RetrieveAPIView):
     renderer_classes = [UserRenderer]
     permission_classes = [permissions.IsAdminUser]
-    serializer_class = Stock_Serializer
+    serializer_class = Product_Serializer
 
     def get_object(self):
         id = self.kwargs.get("pk")
-        return get_object_or_404(Stock, id=id)
+        return get_object_or_404(Product, id=id)
 
 
-# stock search for the admin or user.
-class StockSearchApiView(generics.ListAPIView):
+# product search for the admin or user.
+class ProductSearchApiView(generics.ListAPIView):
     renderer_classes = [UserRenderer]
     permission_classes = [permissions.AllowAny]
-    serializer_class = Stock_Serializer
-    queryset = Stock.objects.all().order_by("-id")
+    serializer_class = Product_Serializer
+    queryset = Product.objects.all().order_by("-id")
     filter_backends = [SearchFilter]
     search_fields = ["^name", "^catogery__name", "^supplier__name"]
 
 
-# updating the stock for the admin.
-class StockUpdateApiView(APIView):
+# updating the product for the admin.
+class ProductUpdateApiView(APIView):
     renderer_classes = [UserRenderer]
-    # permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.IsAdminUser]
 
     def put(self, request, *args, **kwargs):
         id = self.kwargs.get("pk")
-        stock_data = get_object_or_404(Stock, id=id)
-        old_quantity = stock_data.quantity
-        old_photo_path = stock_data.photo.path if stock_data.photo else None
-        serializer = Stock_Serializer(stock_data, data=request.data)
+        product_data = get_object_or_404(Product, id=id)
+        old_quantity = product_data.quantity
+        old_photo_path = product_data.photo.path if product_data.photo else None
+        serializer = Product_Serializer(product_data, data=request.data)
         if serializer.is_valid(raise_exception=True):
             new_quantity = serializer.validated_data["quantity"]
             if old_quantity != new_quantity:
@@ -281,6 +274,105 @@ class StockUpdateApiView(APIView):
         if old_photo_path and instance.photo.path != old_photo_path:
             if os.path.exists(old_photo_path):
                 os.remove(old_photo_path)
+
+
+# Stock.
+# creating the stock.
+class StockCreateApiView(APIView):
+    renderer_classes = [UserRenderer]
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, *args, **kwargs):
+        serializer = StockCreate_Serializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            qtn = serializer.validated_data["quantity"]
+            price = serializer.validated_data["home_price"]
+            total_price = qtn * price
+            serializer.validated_data["total_price"] = total_price
+            serializer.save()
+            return Response(
+                {
+                    "msg": "Stock Added Sucessfully",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+# listing the stock for the admin.
+class StockListApiView(generics.ListAPIView):
+    renderer_classes = [UserRenderer]
+    permission_classes = [permissions.IsAdminUser]
+    queryset = Stock.objects.all().order_by("-created_at")
+    serializer_class = StockAdmin_Serializer
+    pagination_class = MyPageNumberPagination
+
+
+# searching the stock for the admin.
+class SearchStockApiView(generics.ListAPIView):
+    renderer_classes = [UserRenderer]
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = StockAdmin_Serializer
+    queryset = Stock.objects.all().order_by("created_at")
+    filter_backends = [SearchFilter]
+    search_fields = ["^product__name"]
+    pagination_class = MyPageNumberPagination
+
+
+# indivisual stock retrival.
+class IndivisualStockApiView(generics.RetrieveAPIView):
+    renderer_classes = [UserRenderer]
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = StockAdmin_Serializer
+
+    def get_object(self):
+        id = self.kwargs.get("pk")
+        return get_object_or_404(Stock, id=id)
+
+
+# deleting the stock.
+class StockDeleteApiView(generics.DestroyAPIView):
+    renderer_classes = [UserRenderer]
+    permission_classes = [permissions.IsAdminUser]
+    queryset = Stock.objects.all()
+    serializer_class = StockAdmin_Serializer
+
+
+# updating the stock.
+class StockUpdateApiView(APIView):
+    renderer_classes = [UserRenderer]
+    permission_classes = [permissions.AllowAny]
+
+    def put(self, request, *args, **kwargs):
+        id = self.kwargs.get("pk")
+        stock_data = get_object_or_404(Stock, id=id)
+        old_quantity = stock_data.quantity
+        old_home_price = stock_data.home_price
+        serializer = StockCreate_Serializer(stock_data, data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            new_qtn = serializer.validated_data["quantity"]
+            new_home_price = serializer.validated_data["home_price"]
+            if old_quantity != new_qtn or old_home_price != new_home_price:
+                total_price = new_home_price * new_qtn
+                serializer.validated_data["total_price"] = total_price
+                serializer.save()
+            else:
+                serializer.save()
+            return Response(
+                {
+                    "msg": "Stock have been updated.",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 # total price of the stock.
