@@ -9,7 +9,7 @@ class OrderAdmin(admin.ModelAdmin):
         "order_date",
         "order_time",
         "order_taken_by",
-        "tabel_number",
+        "table_number",
         "total_price",
         # "order_item",
     ]
@@ -20,7 +20,7 @@ admin.site.register(Order, OrderAdmin)
 
 # admin pannel for the OrderList.
 class OrderList_Admin(admin.ModelAdmin):
-    list_display = ["order", "quantity", "product"]
+    list_display = ["id", "order", "quantity", "product"]
 
 
 admin.site.register(OrderItem, OrderList_Admin)

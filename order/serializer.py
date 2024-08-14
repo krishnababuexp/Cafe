@@ -1,6 +1,33 @@
-from .models import Order, Stock, OrderItem
+from .models import Order, Stock, OrderItem, Product, Table, User
 from rest_framework import serializers, permissions, status
 from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from django.http import Http404
+
+
+# Serializer for the table detial.
+class TableDetail_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = Table
+        exclude = ("available", "created_at", "updated_at")
+
+
+# Serializer for the user detail.
+class UserDetail_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        exclude = (
+            "photo",
+            "first_name",
+            "last_name",
+            "date_created",
+            "date_updated",
+            "is_admin",
+            "is_active",
+            "is_superuser",
+            "password",
+            "last_login",
+        )
 
 
 # Serializer for the order list.
@@ -21,7 +48,7 @@ class OrderCreate_Serializer(serializers.ModelSerializer):
             "order_date",
             "order_time",
             "order_taken_by",
-            "tabel_number",
+            "table_number",
             "total_price",
             "order_item",
         ]
@@ -32,23 +59,172 @@ class OrderCreate_Serializer(serializers.ModelSerializer):
             "total_price",
         ]
 
+    def validate_stock(self, product, quantity):
+        try:
+            stock = get_object_or_404(Stock, product=product)
+            if stock.quantity < quantity:
+                raise serializers.ValidationError(
+                    {"msg": f"We don't have {quantity} of {product.name}"}
+                )
+            return stock
+        except Http404:
+            return None
+
     def create(self, validated_data):
         order_item_data = validated_data.pop("order_item")
-        print(order_item_data)
-        order = Order.objects.create(**validated_data)
+        table_no = validated_data["table_number"]
 
+        # Check and update stock for each item
         for item_data in order_item_data:
-            # extracting the data form the request.
             product = item_data["product"]
             quantity = item_data["quantity"]
-            stock_data = Stock.objects.get(id=product.id)
-            if stock_data.quantity < quantity:
-                raise serializers.ValidationError(
-                    {"msg": f"We dont have {quantity} of {product}!!"},
-                )
-            stock_data.quantity -= quantity
+            stock = self.validate_stock(product, quantity)
+
+        # Create the order and order items
+        order = Order.objects.create(**validated_data)
+        for item_data in order_item_data:
+            product = item_data["product"]
+            quantity = item_data["quantity"]
+            stock = self.validate_stock(product, quantity)
+
             OrderItem.objects.create(order=order, **item_data)
-            stock_data.save()
+
+            if stock:
+                stock.quantity -= quantity
+                stock.save()
 
         order.calculate_total_price()
+
+        # Update table availability
+        table_data = get_object_or_404(Table, table_number=table_no.table_number)
+        table_data.available = False
+        table_data.save()
+
         return order
+
+
+# Serializer for the order list according to the table.
+class TableOrderList_Serializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderItem
+        fields = ["id", "product", "quantity"]
+
+    def get_product(self, obj):
+        return obj.product.name
+
+
+# serializer for the order retrival.
+class OrderListAdmin_Serializer(serializers.ModelSerializer):
+    order_item = TableOrderList_Serializer(many=True)
+    table_number = TableDetail_Serializer()
+    order_taken_by = UserDetail_Serializer()
+
+    class Meta:
+        model = Order
+        fields = "__all__"
+
+
+# Serializer for the order / order item update.
+class OrderItemUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = ["product", "quantity"]
+
+    def validate(self, data):
+        product = data.get("product")
+        quantity = data.get("quantity")
+        print(product)
+        print(quantity)
+
+        # Validate stock
+        try:
+            stock = Stock.objects.get(product=product)
+        except Stock.DoesNotExist:
+            stock = None
+        print(stock)
+        if stock is not None:
+            if stock.quantity < quantity:
+                raise serializers.ValidationError(
+                    {
+                        "msg": f"We don't have {quantity} units of {product.name} in stock."
+                    }
+                )
+        return data
+
+
+# Serializer to update the order.
+class OrderUpdateSerializer(serializers.ModelSerializer):
+    order_item = OrderItemUpdateSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = ["order_item", "table_number", "order_taken_by"]
+
+    def update(self, instance, validated_data):
+        order_items_data = validated_data.pop("order_item")
+
+        # Update table_number and order_taken_by if provided
+        instance.table_number = validated_data.get(
+            "table_number", instance.table_number
+        )
+        instance.order_taken_by = validated_data.get(
+            "order_taken_by", instance.order_taken_by
+        )
+        instance.save()
+
+        for item_data in order_items_data:
+            product = item_data.get("product")
+            new_quantity = item_data.get("quantity")
+
+            # Get the existing OrderItem instance or create a new one
+            order_item, created = OrderItem.objects.get_or_create(
+                order=instance, product=product, defaults={"quantity": new_quantity}
+            )
+
+            # Handle the stock update if the item already existed
+            if not created:
+                existing_quantity = order_item.quantity
+                quantity_difference = new_quantity - existing_quantity
+                try:
+                    stock = Stock.objects.get(product=product)
+                except Stock.DoesNotExist:
+                    stock = None
+
+                if stock is not None:
+                    if quantity_difference > 0:  # Quantity increased
+                        if stock.quantity < quantity_difference:
+                            raise serializers.ValidationError(
+                                {
+                                    "msg": f"Not enough stock for {product.name}. Available: {stock.quantity}, requested: {quantity_difference} more."
+                                }
+                            )
+                        stock.quantity -= quantity_difference
+                    else:  # Quantity decreased
+                        stock.quantity += abs(quantity_difference)
+                        stock.save()
+
+                # Update the existing OrderItem quantity
+                order_item.quantity = new_quantity
+                order_item.save()
+
+            else:
+                try:
+                    stock = Stock.objects.get(product=product)
+                except Stock.DoesNotExist:
+                    stock = None
+                if stock is not None:
+                    if stock.quantity < new_quantity:
+                        raise serializers.ValidationError(
+                            {
+                                "msg": f"Not enough stock for {product.name}. Available: {stock.quantity}, requested: {new_quantity}."
+                            }
+                        )
+                    stock.quantity -= new_quantity
+                    stock.save()
+
+        # Recalculate the total price of the order
+        instance.calculate_total_price()
+
+        return instance

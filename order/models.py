@@ -28,8 +28,9 @@ class Order(models.Model):
         blank=True,
         null=True,
     )
-    tabel_number = models.ForeignKey(
+    table_number = models.ForeignKey(
         Table,
+        related_name="table",
         on_delete=models.DO_NOTHING,
         blank=False,
         null=False,
@@ -70,9 +71,9 @@ class OrderItem(models.Model):
         null=True,
     )
     product = models.ForeignKey(
-        Stock,
+        Product,
         on_delete=models.CASCADE,
-        related_name="stock",
+        related_name="product",
         blank=False,
         null=False,
     )
