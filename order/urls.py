@@ -33,4 +33,9 @@ urlpatterns = [
         views.OrderSerachApiView.as_view(),
         name="path to search the order",
     ),
+    path(
+        "order/date/",
+        views.OrderListTimeApiView.as_view(),
+        name="path to filter the order based on the date.",
+    ),
 ]

@@ -13,6 +13,7 @@ from .serializer import (
 )
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter
+from datetime import datetime
 
 
 # Order.
@@ -158,3 +159,29 @@ class OrderSerachApiView(generics.ListAPIView):
     filter_backends = [SearchFilter]
     search_fields = ["^order_number"]
     pagination_class = MyPageNumberPagination
+
+
+# order list based on the time.
+class OrderListTimeApiView(generics.ListAPIView):
+    renderer_classes = [UserRenderer]
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, *args, **kwargs):
+        date = request.query_params.get("date", None)
+        if date:
+            try:
+                order_date = datetime.strptime(date, "%Y-%m-%d").date()
+                orders = Order.objects.filter(order_date=order_date)
+                print(orders)
+            except ValueError:
+                return Response(
+                    {"msg": "Invalid date format. Please use YYYY-MM-DD format."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            orders = Order.objects.all().order_by("-order_date")
+        serializer = OrderListAdmin_Serializer(orders, many=True)
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
