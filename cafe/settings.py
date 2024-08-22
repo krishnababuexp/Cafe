@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     "django_filters",
     "stock",
     "order",
+    "cms",
+    "bill",
 ]
 
 

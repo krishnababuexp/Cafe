@@ -19,3 +19,8 @@ iscontactvalidator = RegexValidator(
     "((98)|(97))(\d){8}",
     message="Please enter a valid Nepali phone number starting with '98' or '97' and consisting of 10 digits.",
 )
+
+istelephonevalidator = RegexValidator(
+    "^0\d{1,2}\d{6,7}$",
+    message="Enter a valid telephone number",
+)

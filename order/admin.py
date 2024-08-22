@@ -5,6 +5,7 @@ from .models import Order, OrderItem
 # admin pannel for the order.
 class OrderAdmin(admin.ModelAdmin):
     list_display = [
+        "id",
         "order_number",
         "order_date",
         "order_time",

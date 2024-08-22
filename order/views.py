@@ -28,7 +28,7 @@ class OrderCreateApiView(generics.CreateAPIView):
 # here i want to retrive the order detial according to the table number.
 class OrderTableList(APIView):
     renderer_classes = [UserRenderer]
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk, *args, **kwargs):
         order = (
@@ -164,7 +164,7 @@ class OrderSerachApiView(generics.ListAPIView):
 # order list based on the time.
 class OrderListTimeApiView(generics.ListAPIView):
     renderer_classes = [UserRenderer]
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request, *args, **kwargs):
         date = request.query_params.get("date", None)
