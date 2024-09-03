@@ -116,7 +116,7 @@ class StockCreate_Serializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def validate(self, attrs):
-        qtn = attrs.get("quantity")
+        qtn = attrs.get("initial_quantity")
         if qtn == 0:
             raise serializers.ValidationError(
                 {"msg": "In Stock you cannt put the quantity 0"}
@@ -135,7 +135,11 @@ class StockAdmin_Serializer(serializers.ModelSerializer):
 
 # Serializer for the total price for the stock.
 class StockTotalPrice_Serializer(serializers.ModelSerializer):
-    stock_total_price = serializers.DecimalField(
+    overall_stock_total_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+    remaining_stock_total_price = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
     )
@@ -145,8 +149,12 @@ class StockTotalPrice_Serializer(serializers.ModelSerializer):
         exclude = [
             "product",
             "home_price",
-            "quantity",
-            "total_price",
+            "remaining_quantity",
+            "remaining_quantity_total_price",
+            "added_quantity",
+            "added_quantity_price",
+            "initial_quantity",
+            "initial_quantity_price",
         ]
 
 

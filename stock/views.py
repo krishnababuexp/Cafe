@@ -1,9 +1,11 @@
 from django.shortcuts import render
 from .models import Catogery, Supplier, Product, Table, Stock
+from cms.models import CafeCms
 from cafe.render import UserRenderer
 from rest_framework.views import APIView
 from rest_framework import status, permissions, generics
 from rest_framework.response import Response
+from django.http import JsonResponse
 from .serializer import (
     CatogeryCreate_Serializer,
     Catogery_Serializer,
@@ -22,6 +24,9 @@ from django.shortcuts import get_object_or_404
 from rest_framework.filters import SearchFilter
 from django.db.models import Sum, F
 import os
+from django.db import transaction
+from django.core.management.base import BaseCommand
+from cafe.utils import Util
 
 
 # Catogery.
@@ -153,7 +158,7 @@ class SerachSuppliersApiView(generics.ListAPIView):
 
 
 # product.
-# creating the stock.
+# creating the product.
 class ProductCreateApiView(APIView):
     renderer_classes = [UserRenderer]
     permission_classes = [permissions.IsAdminUser]
@@ -285,10 +290,12 @@ class StockCreateApiView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = StockCreate_Serializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            qtn = serializer.validated_data["quantity"]
+            qtn = serializer.validated_data["initial_quantity"]
             price = serializer.validated_data["home_price"]
             total_price = qtn * price
-            serializer.validated_data["total_price"] = total_price
+            serializer.validated_data["initial_quantity_price"] = total_price
+            serializer.validated_data["remaining_quantity"] = qtn
+            serializer.validated_data["remaining_quantity_total_price"] = total_price
             serializer.save()
             return Response(
                 {
@@ -350,25 +357,62 @@ class StockUpdateApiView(APIView):
     def put(self, request, *args, **kwargs):
         id = self.kwargs.get("pk")
         stock_data = get_object_or_404(Stock, id=id)
-        old_quantity = stock_data.quantity
         old_home_price = stock_data.home_price
         serializer = StockCreate_Serializer(stock_data, data=request.data)
+
         if serializer.is_valid(raise_exception=True):
-            new_qtn = serializer.validated_data["quantity"]
-            new_home_price = serializer.validated_data["home_price"]
-            if old_quantity != new_qtn or old_home_price != new_home_price:
-                total_price = new_home_price * new_qtn
-                serializer.validated_data["total_price"] = total_price
+            new_qtn = serializer.validated_data.get("added_quantity", 0)
+            new_home_price = serializer.validated_data.get("home_price", old_home_price)
+
+            with transaction.atomic():
+                if new_qtn > 0:
+                    added_quantity_price = new_qtn * old_home_price
+                    new_initial_quantity = stock_data.remaining_quantity + new_qtn
+                    new_initial_quantity_price = new_initial_quantity * old_home_price
+                    serializer.validated_data.update(
+                        {
+                            "added_quantity_price": added_quantity_price,
+                            "initial_quantity": new_initial_quantity,
+                            "initial_quantity_price": new_initial_quantity_price,
+                            "remaining_quantity": new_initial_quantity,
+                            "remaining_quantity_total_price": new_initial_quantity_price,
+                        }
+                    )
+                    serializer.save()
+                if old_home_price != new_home_price:
+                    remaining_quantity_price = (
+                        stock_data.remaining_quantity * new_home_price
+                    )
+                    initial_quantity_price = (
+                        stock_data.initial_quantity * new_home_price
+                    )
+                    added_quantity = serializer.validated_data.get("added_quantity", 0)
+                    if added_quantity == 0:
+                        added_quantity_price = stock_data.added_quantity_price
+                    else:
+                        added_quantity_price = (
+                            added_quantity * new_home_price if added_quantity else 0
+                        )
+
+                    serializer.validated_data.update(
+                        {
+                            "remaining_quantity_total_price": remaining_quantity_price,
+                            "initial_quantity_price": initial_quantity_price,
+                            "added_quantity_price": added_quantity_price,
+                        }
+                    )
+                    serializer.save()
+
                 serializer.save()
-            else:
-                serializer.save()
+
             return Response(
                 {
-                    "msg": "Stock have been updated.",
+                    "msg": "Stock has been updated.",
                     "data": serializer.data,
                 },
                 status=status.HTTP_200_OK,
             )
+
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST,
@@ -382,9 +426,20 @@ class TotalPriceStockApiView(APIView):
 
     def get(self, request, *args, **kwargs):
         total_prices = 0
-        total_prices = Stock.objects.aggregate(total_prices=Sum(F("total_price")))
+        remaining_total_prices = 0
+        total_prices = Stock.objects.aggregate(
+            total_prices=Sum(F("initial_quantity_price"))
+        )
+        remaining_total_prices = Stock.objects.aggregate(
+            remaining_total_prices=Sum(F("remaining_quantity_total_price"))
+        )
         serializer = StockTotalPrice_Serializer(
-            {"stock_total_price": total_prices["total_prices"]}
+            {
+                "overall_stock_total_price": total_prices["total_prices"],
+                "remaining_stock_total_price": remaining_total_prices[
+                    "remaining_total_prices"
+                ],
+            }
         )
         return Response(
             serializer.data,
@@ -445,3 +500,71 @@ class SerachTableApiView(generics.ListAPIView):
     filter_backends = [SearchFilter]
     search_fields = ["^table_name"]
     pagination_class = MyPageNumberPagination
+
+
+# here we define the threeshold for the stock product quantity.
+def calulate_threeshold(product_quantity):
+    if product_quantity >= 750:
+        return 40
+    elif product_quantity >= 500:
+        return 30
+    elif product_quantity >= 200:
+        return 25
+    elif product_quantity >= 100:
+        return 20
+    elif product_quantity >= 10:
+        return 5
+    else:
+        return 2
+
+
+# view to send the mail to the admin if the stock is low.
+def send_email_handle(self):
+    low_stock_products = []
+
+    for stock_product in Stock.objects.all():
+        threshold = calulate_threeshold(stock_product.remaining_quantity)
+        if stock_product.remaining_quantity <= threshold:
+            low_stock_products.append(stock_product)
+
+        if low_stock_products:
+            product_list = "\n".join(
+                [f"{sp.product}: {sp.remaining_quantity}" for sp in low_stock_products]
+            )
+            admin_user = CafeCms.objects.first()
+            admin_user_emails = [
+                email
+                for email in [
+                    admin_user.email_1,
+                    admin_user.cafe_email,
+                    admin_user.email_2,
+                ]
+                if email is not None
+            ]
+
+            for user in admin_user_emails:
+                data = {
+                    "subject": "Alert: The stock quantity for some products is critically low!",
+                    "body": (
+                        f"Dear Admin,\n\nThe following products have low stock levels:\n\n"
+                        f"{product_list}\n\n"
+                        "Best regards,\n"
+                        "The Black Jack Application"
+                    ),
+                    "to_email": user,
+                }
+                try:
+                    Util.send_email(data)
+                except Exception as e:
+                    # Log the exception and continue
+                    print(f"Error sending email to {user}: {e}")
+
+            return JsonResponse(
+                {"message": "mail has been delivered..."},
+                status=status.HTTP_200_OK,
+            )
+        # else:
+        #     return JsonResponse(
+        #         {"msg": "No low stock products found."},
+        #         status=status.HTTP_200_OK,
+        #     )

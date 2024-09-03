@@ -94,17 +94,39 @@ class Stock(BaseModel):
         blank=False,
         null=False,
     )
-    quantity = models.PositiveBigIntegerField(
-        null=False,
-        blank=False,
+    # this will remaining quantity.
+    remaining_quantity = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
     )
-    total_price = models.PositiveBigIntegerField(
+    remaining_quantity_total_price = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    # added quantity.
+    added_quantity = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    added_quantity_price = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    # initial quantity.
+    initial_quantity = models.PositiveBigIntegerField(
+        blank=False,
+        null=False,
+    )
+    initial_quantity_price = models.PositiveBigIntegerField(
         null=True,
         blank=True,
     )
 
     def __str__(self):
-        return f"{self.product.name}-{self.quantity}-{self.home_price}"
+        return f"{self.product.name}-{self.home_price}"
 
 
 # model for the table.

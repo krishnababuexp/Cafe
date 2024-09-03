@@ -3,6 +3,7 @@ from rest_framework import serializers, permissions, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.http import Http404
+from django.db import transaction
 
 
 # Serializer for the table detial.
@@ -62,7 +63,7 @@ class OrderCreate_Serializer(serializers.ModelSerializer):
     def validate_stock(self, product, quantity):
         try:
             stock = get_object_or_404(Stock, product=product)
-            if stock.quantity < quantity:
+            if stock.remaining_quantity < quantity:
                 raise serializers.ValidationError(
                     {"msg": f"We don't have {quantity} of {product.name}"}
                 )
@@ -90,7 +91,9 @@ class OrderCreate_Serializer(serializers.ModelSerializer):
             OrderItem.objects.create(order=order, **item_data)
 
             if stock:
-                stock.quantity -= quantity
+                rqtn = stock.remaining_quantity - quantity
+                stock.remaining_quantity -= quantity
+                stock.remaining_quantity_total_price = rqtn * stock.home_price
                 stock.save()
 
         order.calculate_total_price()
@@ -173,58 +176,69 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
             "order_taken_by", instance.order_taken_by
         )
         instance.save()
+        with transaction.atomic():
+            for item_data in order_items_data:
+                product = item_data.get("product")
+                new_quantity = item_data.get("quantity")
 
-        for item_data in order_items_data:
-            product = item_data.get("product")
-            new_quantity = item_data.get("quantity")
+                # Get the existing OrderItem instance or create a new one
+                order_item, created = OrderItem.objects.get_or_create(
+                    order=instance, product=product, defaults={"quantity": new_quantity}
+                )
 
-            # Get the existing OrderItem instance or create a new one
-            order_item, created = OrderItem.objects.get_or_create(
-                order=instance, product=product, defaults={"quantity": new_quantity}
-            )
+                # Handle the stock update if the item already existed
+                if not created:
+                    existing_quantity = order_item.quantity
+                    quantity_difference = new_quantity - existing_quantity
+                    try:
+                        stock = Stock.objects.get(product=product)
+                    except Stock.DoesNotExist:
+                        stock = None
 
-            # Handle the stock update if the item already existed
-            if not created:
-                existing_quantity = order_item.quantity
-                quantity_difference = new_quantity - existing_quantity
-                try:
-                    stock = Stock.objects.get(product=product)
-                except Stock.DoesNotExist:
-                    stock = None
+                    if stock is not None:
+                        if quantity_difference > 0:  # Quantity increased
+                            if stock.remaining_quantity < quantity_difference:
+                                raise serializers.ValidationError(
+                                    {
+                                        "msg": f"Not enough stock for {product.name}. Available: {stock.remaining_quantity}, requested: {quantity_difference} more."
+                                    }
+                                )
+                            stock.remaining_quantity -= quantity_difference
+                            rqtn = stock.remaining_quantity - quantity_difference
+                            stock.remaining_quantity_total_price = (
+                                rqtn * stock.home_price
+                            )
+                            stock.save()
+                        else:  # Quantity decreased
+                            stock.remaining_quantity += abs(quantity_difference)
+                            rqtn = stock.remaining_quantity + quantity_difference
+                            stock.remaining_quantity_total_price = (
+                                rqtn * stock.home_price
+                            )
+                            stock.save()
 
-                if stock is not None:
-                    if quantity_difference > 0:  # Quantity increased
-                        if stock.quantity < quantity_difference:
+                    # Update the existing OrderItem quantity
+                    order_item.quantity = new_quantity
+                    order_item.save()
+
+                else:
+                    try:
+                        stock = Stock.objects.get(product=product)
+                    except Stock.DoesNotExist:
+                        stock = None
+                    if stock is not None:
+                        if stock.remaining_quantity < new_quantity:
                             raise serializers.ValidationError(
                                 {
-                                    "msg": f"Not enough stock for {product.name}. Available: {stock.quantity}, requested: {quantity_difference} more."
+                                    "msg": f"Not enough stock for {product.name}. Available: {stock.quantity}, requested: {new_quantity}."
                                 }
                             )
-                        stock.quantity -= quantity_difference
-                    else:  # Quantity decreased
-                        stock.quantity += abs(quantity_difference)
+                        stock.remaining_quantity -= new_quantity
+                        rqtn = stock.remaining_quantity - new_quantity
+                        stock.remaining_quantity_total_price = rqtn * stock.home_price
                         stock.save()
 
-                # Update the existing OrderItem quantity
-                order_item.quantity = new_quantity
-                order_item.save()
-
-            else:
-                try:
-                    stock = Stock.objects.get(product=product)
-                except Stock.DoesNotExist:
-                    stock = None
-                if stock is not None:
-                    if stock.quantity < new_quantity:
-                        raise serializers.ValidationError(
-                            {
-                                "msg": f"Not enough stock for {product.name}. Available: {stock.quantity}, requested: {new_quantity}."
-                            }
-                        )
-                    stock.quantity -= new_quantity
-                    stock.save()
-
-        # Recalculate the total price of the order
-        instance.calculate_total_price()
+            # Recalculate the total price of the order
+            instance.calculate_total_price()
 
         return instance

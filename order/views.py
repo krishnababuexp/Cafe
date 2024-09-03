@@ -14,6 +14,7 @@ from .serializer import (
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter
 from datetime import datetime
+from django.db import transaction
 
 
 # Order.
@@ -47,6 +48,7 @@ class OrderItemDeleteApiView(APIView):
 
     def delete(self, request, order_number, pk, *args, **kwargs):
         order_data = get_object_or_404(Order, order_number=order_number)
+        print(order_data)
         try:
             order_item_present = OrderItem.objects.get(order=order_data, id=pk)
         except OrderItem.DoesNotExist:
@@ -56,20 +58,25 @@ class OrderItemDeleteApiView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        order_item_present.delete()
+
         # Recalculate and update the total price of the order
         quantity_order_list = order_item_present.quantity
         product_order_list = order_item_present.product
-        product_data = get_object_or_404(Product, id=product_order_list.id)
-        price_reduced = product_data.user_price * quantity_order_list
-        order_data.total_price -= price_reduced
-        order_data.save()
+        with transaction.atomic():
+            product_data = get_object_or_404(Product, id=product_order_list.id)
+            price_reduced = product_data.user_price * quantity_order_list
+            order_data.total_price -= price_reduced
+            order_data.save()
 
-        # Update the stock quantity if the product is in stock
-        stock_data = Stock.objects.filter(product=product_order_list).first()
-        if stock_data:
-            stock_data.quantity += quantity_order_list
-            stock_data.save()
+            # Update the stock quantity if the product is in stock
+            stock_data = Stock.objects.filter(product=product_order_list).first()
+            if stock_data:
+                rqtn = stock_data.remaining_quantity + quantity_order_list
+                stock_data.remaining_quantity += quantity_order_list
+                stock_data.remaining_quantity_total_price = rqtn * stock_data.home_price
+                stock_data.save()
+
+            order_item_present.delete()
 
         return Response(
             {
@@ -90,16 +97,34 @@ class OrderDeleteApiView(APIView):
             order_data = Order.objects.get(
                 order_number=order_number, table_number=table
             )
+            order_item_list = OrderItem.objects.filter(order=order_data)
         except Order.DoesNotExist:
             return Response(
                 {
-                    "msg": f"The order with the order number {order_number} doesnot exits."
+                    "msg": f"The order with the order number {order_number} does not exist."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        order_data.delete()
-        table.available = True
-        table.save()
+
+        with transaction.atomic():
+            for order_item in order_item_list:
+                product_item = get_object_or_404(Product, id=order_item.product.id)
+                stock_data = Stock.objects.filter(product=product_item).first()
+
+                if stock_data:
+                    rqtn = stock_data.remaining_quantity + order_item.quantity
+                    stock_data.remaining_quantity = rqtn
+                    stock_data.remaining_quantity_total_price = (
+                        rqtn * stock_data.home_price
+                    )
+                    stock_data.save()
+
+            # Now delete the order after updating the stock
+            order_data.delete()
+
+            table.available = True
+            table.save()
+
         return Response(
             {
                 "msg": f"Order with order number {order_number} was successfully deleted.",

@@ -166,4 +166,9 @@ urlpatterns = [
         views.TotalPriceStockApiView.as_view(),
         name="patht to get the over all price of the stock.",
     ),
+    path(
+        "quantity/check/",
+        views.send_email_handle,
+        name="path to see the quantity of the product",
+    ),
 ]

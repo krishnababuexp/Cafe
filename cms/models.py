@@ -65,6 +65,10 @@ class CafeCms(BaseModelCms):
         blank=False,
         null=False,
     )
+    pana_number = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+    )
     # additional information.
     discount_rate = models.DecimalField(
         max_digits=4,

@@ -205,6 +205,7 @@ CORS_ALLOW_HEADERS = [
     "result",
 ]
 
+
 # email testing using the gmail.
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
