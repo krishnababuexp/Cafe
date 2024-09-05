@@ -15,20 +15,20 @@ class CatogeryCreate_Serializer(serializers.ModelSerializer):
         model = Catogery
         fields = "__all__"
 
-    def validate_photo(self, value):
-        valid_extnsion = ["png", "jpg", "jpeg", "hiec"]
-        extension = value.name.split(".")[-1].lower()
-        print(value.name)
-        data = self.initial_data.get("name")
-        print(data)
-        if extension not in valid_extnsion:
-            raise serializers.ValidationError(
-                f"Unsupported file extension: {extension}.Use [jpg,jpeg,png,hiec]"
-            )
-        else:
-            new_name = f"{data}.{extension}"
-            value.name = new_name
-        return value
+    # def validate_photo(self, value):
+    #     valid_extnsion = ["png", "jpg", "jpeg", "hiec"]
+    #     extension = value.name.split(".")[-1].lower()
+    #     print(value.name)
+    #     data = self.initial_data.get("name")
+    #     print(data)
+    #     if extension not in valid_extnsion:
+    #         raise serializers.ValidationError(
+    #             f"Unsupported file extension: {extension}.Use [jpg,jpeg,png,hiec]"
+    #         )
+    #     else:
+    #         new_name = f"{data}.{extension}"
+    #         value.name = new_name
+    #     return value
 
 
 # Serializer for the Suppliers.
