@@ -204,7 +204,9 @@ CORS_ALLOW_HEADERS = [
     "headers",  # Add this line
     "result",
 ]
-
+CSRF_TRUSTED_ORIGINS = [
+                        'https://cafe-app-meu8i.ondigitalocean.app'
+                        ]
 
 # email testing using the gmail.
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
