@@ -65,7 +65,7 @@ class CafeCms(BaseModelCms):
         blank=False,
         null=False,
     )
-    pana_number = models.PositiveBigIntegerField(
+    pan_number = models.PositiveBigIntegerField(
         null=True,
         blank=True,
     )

@@ -93,7 +93,7 @@ class BillListApiView(generics.ListAPIView):
 # view to reterive the indivisual data and to ge the print out of the bill.
 class BillPrintIndivisualApiView(generics.RetrieveAPIView):
     renderer_classes = [UserRenderer]
-    permission_classes = [permissions.IsAdminUser]
+    # permission_classes = [permissions.IsAdminUser]
     serializer_class = BillDetail_Serializer
 
     def get_object(self):

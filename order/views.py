@@ -15,6 +15,8 @@ from rest_framework.response import Response
 from rest_framework.filters import SearchFilter
 from datetime import datetime
 from django.db import transaction
+from django.http import JsonResponse
+from bill.models import Bill
 
 
 # Order.
@@ -29,16 +31,36 @@ class OrderCreateApiView(generics.CreateAPIView):
 # here i want to retrive the order detial according to the table number.
 class OrderTableList(APIView):
     renderer_classes = [UserRenderer]
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
 
     def get(self, request, pk, *args, **kwargs):
-        order = (
+        table_data = Table.objects.get(table_number=pk)
+        print(table_data.available)
+        # if not table_data.available:
+        order_data = (
             Order.objects.filter(table_number__table_number=pk)
             .order_by("-order_date", "-order_time")
             .first()
         )
-        serializer = OrderListAdmin_Serializer(order)
-        return Response(serializer.data)
+        print(order_data.id)
+        try:
+            bill_check = Bill.objects.get(order=order_data.id)
+            print(bill_check)
+        except Bill.DoesNotExist:
+            bill_check = None
+        print(bill_check)
+        if bill_check is None:
+            order = (
+                Order.objects.filter(table_number__table_number=pk)
+                .order_by("-order_date", "-order_time")
+                .first()
+            )
+            serializer = OrderListAdmin_Serializer(order)
+            data = serializer.data
+            return Response({"data": data})
+        else:
+            data = []
+            return JsonResponse({"data": data})
 
 
 # deleting the orderitem from the order.

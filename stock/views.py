@@ -282,7 +282,7 @@ class ProductSearchApiView(generics.ListAPIView):
 
 
 # updating the product for the admin.
-class ProductUpdateApiView(APIView):
+class ProductUpdateApiView(generics.UpdateAPIView):
     renderer_classes = [UserRenderer]
     permission_classes = [permissions.IsAdminUser]
     queryset = Product.objects.all()
@@ -321,7 +321,7 @@ class StockCreateApiView(APIView):
 # listing the stock for the admin.
 class StockListApiView(generics.ListAPIView):
     renderer_classes = [UserRenderer]
-    permission_classes = [permissions.IsAdminUser]
+    # permission_classes = [permissions.IsAdminUser]
     queryset = Stock.objects.all().order_by("-created_at")
     serializer_class = StockAdmin_Serializer
     pagination_class = MyPageNumberPagination
@@ -571,8 +571,8 @@ def send_email_handle(self):
                 {"message": "mail has been delivered..."},
                 status=status.HTTP_200_OK,
             )
-        # else:
-        #     return JsonResponse(
-        #         {"msg": "No low stock products found."},
-        #         status=status.HTTP_200_OK,
-        #     )
+        else:
+            return JsonResponse(
+                {"msg": "No low stock products found."},
+                status=status.HTTP_200_OK,
+            )

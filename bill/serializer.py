@@ -4,19 +4,11 @@ from order.serializer import OrderListAdmin_Serializer
 from cms.serializers import CmsSerializer
 from cms.models import CafeCms
 from order.models import Order, OrderItem
+from stock.serializer import TablePartial_Serializer
 
 
 # Serilaizer for the bill create.
 class BillCreate_Serializer(serializers.ModelSerializer):
-    class Meta:
-        model = Bill
-        fields = "__all__"
-
-
-# Serializer for the bill list for the admin.
-class BillList_Serializer(serializers.ModelSerializer):
-    order = OrderListAdmin_Serializer()
-
     class Meta:
         model = Bill
         fields = "__all__"
@@ -53,6 +45,7 @@ class TableOrderList_Serializer(serializers.ModelSerializer):
 # Serailzer for the order list for the bill print data.
 class BillOrderDetail_Serializer(serializers.ModelSerializer):
     order_list = serializers.SerializerMethodField()
+    table_number = TablePartial_Serializer()
 
     class Meta:
         model = Order
@@ -67,6 +60,15 @@ class BillOrderDetail_Serializer(serializers.ModelSerializer):
         order_list = obj.order_item.all()
         print(order_list)
         return TableOrderList_Serializer(order_list, many=True).data
+
+
+# Serializer for the bill list for the admin.
+class BillList_Serializer(serializers.ModelSerializer):
+    order = BillOrderDetail_Serializer()
+
+    class Meta:
+        model = Bill
+        fields = "__all__"
 
 
 # Serializer for the bill data.
@@ -97,4 +99,5 @@ class BillDetail_Serializer(serializers.ModelSerializer):
                 "telephone": cafe_data.telephone,
                 "address": cafe_data.location,
                 "additional_amount": cafe_data.additional_amount,
+                "pan_number": cafe_data.pan_number,
             }
