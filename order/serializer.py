@@ -72,50 +72,72 @@ class OrderCreate_Serializer(serializers.ModelSerializer):
             return None
 
     def create(self, validated_data):
-        order_item_data = validated_data.pop("order_item")
-        table_no = validated_data["table_number"]
+        with transaction.atomic():
+            order_item_data = validated_data.pop("order_item")
+            table_no = validated_data["table_number"]
 
-        # Check and update stock for each item
-        for item_data in order_item_data:
-            product = item_data["product"]
-            quantity = item_data["quantity"]
-            stock = self.validate_stock(product, quantity)
+            # Check and update stock for each item
+            for item_data in order_item_data:
+                product = item_data["product"]
+                quantity = item_data["quantity"]
+                stock = self.validate_stock(product, quantity)
 
-        # Create the order and order items
-        order = Order.objects.create(**validated_data)
-        for item_data in order_item_data:
-            product = item_data["product"]
-            quantity = item_data["quantity"]
-            stock = self.validate_stock(product, quantity)
+            # Create the order and order items
+            order = Order.objects.create(**validated_data)
+            for item_data in order_item_data:
+                product = item_data["product"]
+                quantity = item_data["quantity"]
+                stock = self.validate_stock(product, quantity)
 
-            OrderItem.objects.create(order=order, **item_data)
+                OrderItem.objects.create(order=order, **item_data)
 
-            if stock:
-                rqtn = stock.remaining_quantity - quantity
-                stock.remaining_quantity -= quantity
-                stock.remaining_quantity_total_price = rqtn * stock.home_price
-                stock.save()
+                if stock:
+                    rqtn = stock.remaining_quantity - quantity
+                    stock.remaining_quantity -= quantity
+                    stock.remaining_quantity_total_price = rqtn * stock.home_price
+                    stock.save()
 
-        order.calculate_total_price()
+            order.calculate_total_price()
 
-        # Update table availability
-        table_data = get_object_or_404(Table, table_number=table_no.table_number)
-        table_data.available = False
-        table_data.save()
+            # Update table availability
+            table_data = get_object_or_404(Table, table_number=table_no.table_number)
+            table_data.available = False
+            table_data.save()
 
-        return order
+            return order
 
 
 # Serializer for the order list according to the table.
 class TableOrderList_Serializer(serializers.ModelSerializer):
+    product_id = serializers.SerializerMethodField()
     product = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
+    order_product_price = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
-        fields = ["id", "product", "quantity"]
+        fields = [
+            "id",
+            "product_id",
+            "product",
+            "quantity",
+            "price",
+            "order_product_price",
+        ]
 
     def get_product(self, obj):
         return obj.product.name
+
+    def get_price(self, obj):
+        return obj.product.user_price
+
+    def get_order_product_price(self, obj):
+        pd = obj.product.user_price
+        qtn = obj.quantity
+        return pd * qtn
+
+    def get_product_id(self, obj):
+        return obj.product.id
 
 
 # serializer for the order retrival.
@@ -148,7 +170,7 @@ class OrderItemUpdateSerializer(serializers.ModelSerializer):
             stock = None
         print(stock)
         if stock is not None:
-            if stock.quantity < quantity:
+            if stock.remaining_quantity < quantity:
                 raise serializers.ValidationError(
                     {
                         "msg": f"We don't have {quantity} units of {product.name} in stock."

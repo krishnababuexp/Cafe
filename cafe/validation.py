@@ -9,7 +9,7 @@ isalphavalidator = RegexValidator(
 
 # fro the alphanumerical validations.
 isalphanumericalvalidator = RegexValidator(
-    "^[a-z- A-z 0-9]+$",
+    "^[a-zA-Z0-9.\-\s]+$",
     message="Invalid data format. Only letters, numbers, and hyphens are allowed.",
     code="Invalide name",
 )

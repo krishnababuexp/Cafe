@@ -163,3 +163,14 @@ class Table_Serializer(serializers.ModelSerializer):
     class Meta:
         model = Table
         fields = "__all__"
+
+
+# Seriailzer for the partial data for the table.
+class TablePartial_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = Table
+        exclude = (
+            "created_at",
+            "updated_at",
+            "available",
+        )
